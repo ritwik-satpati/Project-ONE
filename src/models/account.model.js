@@ -65,7 +65,7 @@ const accountSchema = new Schema(
       type: [
         {
           // Name of the role
-          role: {
+          name: {
             type: String,
             enum: ["USER", "SELLER", "ADMIN", "SUPERADMIN"],
           },
@@ -83,7 +83,8 @@ const accountSchema = new Schema(
           },
         },
       ],
-      select: false,
+      _id: false,
+      // select: false,
       // required: false,
     },
     // Refresh token for JWT authentication used for Session based login
@@ -106,12 +107,12 @@ accountSchema.pre("save", async function (next) {
 });
 
 // Method to check if the provided password is correct
-accountSchema.method.isPasswordCorrect = async function (password) {
+accountSchema.methods.isPasswordCorrect = async function (password) {
   return await bcrypt.compare(password, this.password);
 };
 
 // Method to generate an access token for authentication
-accountSchema.method.generateAccessToken = async function () {
+accountSchema.methods.generateAccessToken = async function () {
   return jwt.sign(
     {
       _id: this._id,

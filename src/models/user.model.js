@@ -4,7 +4,7 @@ import bcrypt from "bcrypt";
 
 const userSchema = new Schema(
   {
-    account: {
+    accountId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Account",
     },
@@ -18,6 +18,7 @@ const userSchema = new Schema(
       unique: true,
       trim: true,
       index: true,
+      require: false,
     },
   },
   {

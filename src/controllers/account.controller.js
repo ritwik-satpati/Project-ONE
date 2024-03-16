@@ -1,9 +1,41 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
-import { Account } from "../models/account.model.js";
-import { uploadOnCloudinary } from "../utils/cloudinar.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { Account } from "../models/account.model.js";
 import fs from "fs";
+import { uploadOnCloudinary } from "../utils/cloudinar.js";
+
+const generateAccessAndRefereshTokensX = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+
+    user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: false });
+
+    return { accessToken, refreshToken };
+  } catch (error) {
+    throw new ApiError(
+      500,
+      "Something went wrong while generating referesh and access token"
+    );
+  }
+};
+
+const generateAccessTokens = async (userId) => {
+  try {
+    const account = await Account.findById(userId);
+    const accessToken = account.generateAccessToken();
+
+    return { accessToken };
+  } catch (error) {
+    throw new ApiError(
+      500,
+      "Something went wrong while generating referesh and access token"
+    );
+  }
+};
 
 const unlinkAvatar = (filePath) => {
   fs.unlink(filePath, (err) => {

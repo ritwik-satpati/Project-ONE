@@ -53,7 +53,7 @@ const registerUser = asyncHandler(async (req, res) => {
       201,
       {
         account: updatedAccount,
-        user: createdUser,
+        user: user,
       },
       "User created successfully"
     )

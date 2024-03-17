@@ -111,8 +111,12 @@ const registerAccountX = asyncHandler(async (req, res) => {
     );
 });
 
-const registerAccount = asyncHandler(async (req, res) => {
+// *** ONE Account Registration ***
+export const registerAccount = asyncHandler(async (req, res) => {
+  // Extract user information from request body
   const { name, mobileNumber, email, password } = req.body;
+
+  // Validate that all fields are provided
   if (
     [name, mobileNumber, email, password].some(
       (field) => !field || field?.trim() === ""
@@ -121,6 +125,7 @@ const registerAccount = asyncHandler(async (req, res) => {
     throw new ApiError(400, "All fields are required!!!");
   }
 
+  // Check for existing account with various identifiers
   const existedAccount = await Account.findOne({
     $or: [
       { email: email },
@@ -137,16 +142,18 @@ const registerAccount = asyncHandler(async (req, res) => {
     );
   }
 
+  // Create a new account document
   const account = await Account.create({
     name,
     mobileNumber,
-    email: email.toLowerCase(),
+    email: email.toLowerCase(), // Convert email to lowercase for case-insensitive matching
     password,
   });
 
-  // const createdAccount = await Account.findById(account._id);
+  // Use the created account object directly (assuming no further processing needed)
   const createdAccount = account;
 
+  // Check if account creation was successful
   if (!createdAccount) {
     throw new ApiError(
       500,
@@ -154,10 +161,13 @@ const registerAccount = asyncHandler(async (req, res) => {
     );
   }
 
-  return res.status(201).json(
-    new ApiResponse(200, createdAccount, "ONE Account created successfully")
-    // new ApiResponse(200, {}, "ONE Account created successfully")
-  );
-});
+  // Remove the password field from the account object before sending response
+  createdAccount.password = undefined;
 
-export { registerAccount };
+  // Return a successful response with the created account information
+  return res
+    .status(201)
+    .json(
+      new ApiResponse(201, createdAccount, "ONE Account created successfully")
+    );
+});

@@ -1,13 +1,16 @@
+// Import necessary libraries
 import mongoose, { Schema } from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 
+// Define the Account schema
 const accountSchema = new Schema(
   {
     // Indicates the type of account (personal or brand)
     type: {
       type: String,
       enum: ["personal", "brand"],
+      default: "personal",
     },
     // Name of the account holder
     name: {
@@ -137,4 +140,5 @@ accountSchema.method.generateRefreshToken = async function () {
   );
 };
 
+// Export the Account model
 export const Account = mongoose.model("Account", accountSchema);

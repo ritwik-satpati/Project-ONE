@@ -10,10 +10,18 @@ import { userAuth } from "../middlewares/userAuth.middleware.js";
 
 const router = Router();
 
+// *** User Registration ***
 router.route("/register").post(upload.none(), registerUser);
+
+// *** User Login ***
 router.route("/login").post(upload.none(), loginUser);
-//secured routes
+
+// Secured Routes ...
+
+// *** Get User Information ***
 router.route("/").get(userAuth, getUser);
+
+// *** User Logout ***
 router.route("/logout").post(userAuth, logoutUser);
 
 export default router;

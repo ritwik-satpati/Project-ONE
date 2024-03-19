@@ -130,7 +130,7 @@ export const loginUser = asyncHandler(async (req, res) => {
     }
   });
 
-  // Throw error if user doesn't have a "USER" role
+  // Throw error if account doesn't have a "USER" role
   if (!userAccount) {
     throw new ApiError(425, "Need to register as an user!");
   }
@@ -182,5 +182,5 @@ export const logoutUser = asyncHandler(async (req, res) => {
   res.clearCookie("accountAccessToken", cookieOptions);
 
   // Return a successful response indicating logout
-  return res.status(200).json(new ApiResponse(200, {}, "User logged Out"));
+  return res.status(200).json(new ApiResponse(200, {}, "User logged out"));
 });

@@ -5,6 +5,11 @@ import { Account } from "../models/account.model.js";
 import fs from "fs";
 import { uploadOnCloudinary } from "../utils/cloudinar.js";
 
+const cookieOptions = {
+  httpOnly: true,
+  // secure: true,
+};
+
 const generateAccessAndRefereshTokensX = async (userId) => {
   try {
     const user = await User.findById(userId);
@@ -170,4 +175,76 @@ export const registerAccount = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(201, createdAccount, "ONE Account created successfully")
     );
+});
+
+// *** ONE Account Login ***
+export const loginAccount = asyncHandler(async (req, res) => {
+  // Extract email and password from the request body
+  const { email, password } = req.body;
+
+  // Validate that both email and password are provided
+  if ([email, password].some((field) => !field || field?.trim() === "")) {
+    throw new ApiError(400, "All fields are required!!!");
+  }
+
+  // Find account with matching email or alternative email
+  const existedAccount = await Account.findOne({
+    $or: [{ email: email }, { mailAlternative: email }],
+  }).select("+password"); // Include the password field for comparison
+
+  // Throw error if account is not found
+  if (!existedAccount) {
+    throw new ApiError(
+      409,
+      "Account with email is not exist, create an Account first!"
+    );
+  }
+
+  // Verify password matches the account's password (implementation from Account model method)
+  const isPasswordValid = await existedAccount.isPasswordCorrect(password);
+  if (!isPasswordValid) {
+    throw new ApiError(401, "Invalid account credentials");
+  }
+
+  // Generate an access token for the account (implementation from Account model method)
+  const accountAccessToken = await existedAccount.generateAccessToken();
+
+  // Remove the password field from the account object before sending response
+  existedAccount.password = undefined;
+
+  // Set the access token as a cookie and send a success response with account and user information
+  return res
+    .status(200)
+    .cookie("accountAccessToken", accountAccessToken, cookieOptions)
+    .json(
+      new ApiResponse(
+        200,
+        { account: existedAccount },
+        "ONE Account login successfully"
+      )
+    );
+});
+
+// *** ONE Account Information ***
+export const getAccount = asyncHandler(async (req, res) => {
+  // Retrieve user and account data from the request object
+  const { account } = req;
+
+  // Return a successful response with user and account information
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { account }, "ONE Account fetched successfully")
+    );
+});
+
+// *** ONE Account Logout ***
+export const logoutAccount = asyncHandler(async (req, res) => {
+  // Clear the account access token cookie
+  res.clearCookie("accountAccessToken", cookieOptions);
+
+  // Return a successful response indicating logout
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "ONE Account logged out"));
 });

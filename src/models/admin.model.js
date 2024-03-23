@@ -8,6 +8,11 @@ const adminSchema = new Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Account",
     },
+    adminPassword: {
+      type: String,
+      required: [true, "Admin Password is required!"],
+      select: false,
+    },
     isActive: {
       type: Boolean,
       default: true,

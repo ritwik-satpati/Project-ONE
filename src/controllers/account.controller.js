@@ -130,6 +130,12 @@ export const registerAccount = asyncHandler(async (req, res) => {
     throw new ApiError(400, "All fields are required!!!");
   }
 
+  // Validate email format (example using regular expressions)
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    throw new ApiError(400, "Invalid email format!");
+  }
+
   // Check for existing account with various identifiers
   const existedAccount = await Account.findOne({
     $or: [
@@ -246,5 +252,5 @@ export const logoutAccount = asyncHandler(async (req, res) => {
   // Return a successful response indicating logout
   return res
     .status(200)
-    .json(new ApiResponse(200, {}, "ONE Account logged out"));
+    .json(new ApiResponse(200, {}, "ONE Account logged out successfully"));
 });

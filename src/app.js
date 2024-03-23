@@ -29,11 +29,13 @@ import accountRouter from "./routes/account.routes.js";
 import userRouter from "./routes/user.routes.js";
 // import sellerRouter from "./routes/seller.routes.js";
 import adminRouter from "./routes/admin.routes.js";
+import superAdminRouter from "./routes/superAdmin.routes.js";
 
 //routes declaration
 app.use("/api/v1/account", accountRouter);
 app.use("/api/v1/user", userRouter);
 // app.use("/api/v1/seller", sellerRouter);
 app.use("/api/v1/admin", adminRouter);
+app.use("/api/v1/super-admin", superAdminRouter);
 
 export { app };

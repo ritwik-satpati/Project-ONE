@@ -3,20 +3,24 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Account } from "../models/account.model.js";
-import { User } from "../models/user.model.js";
+import { SuperAdmin } from "../models/superAdmin.model.js";
 
 const cookieOptions = {
   httpOnly: true,
   // secure: true,
 };
 
-// *** User Registration ***
-export const registerUser = asyncHandler(async (req, res) => {
+// *** Super Admin Registration ***
+export const registerSuperAdmin = asyncHandler(async (req, res) => {
   // Extract email and password from the request body
-  const { email, password } = req.body;
+  const { email, password, superPassword } = req.body;
 
   // Validate that both email and password are provided
-  if ([email, password].some((field) => !field || field?.trim() === "")) {
+  if (
+    [email, password, superPassword].some(
+      (field) => !field || field?.trim() === ""
+    )
+  ) {
     throw new ApiError(400, "All fields are required!!!");
   }
 
@@ -40,11 +44,13 @@ export const registerUser = asyncHandler(async (req, res) => {
   }
 
   // Check for existing user with the same account ID
-  const existedUser = await User.findOne({ accountId: existedAccount._id });
+  const existedSuperAdmin = await SuperAdmin.findOne({
+    accountId: existedAccount._id,
+  });
 
   // If a user already exists, throw an error
-  if (existedUser) {
-    throw new ApiError(409, "User with email is exist, login now!");
+  if (existedSuperAdmin) {
+    throw new ApiError(409, "Super Admin with email is exist, login now!");
   }
 
   // Start a new session for transaction handling (Mongoose session)
@@ -54,10 +60,18 @@ export const registerUser = asyncHandler(async (req, res) => {
     // Start a transaction
     session.startTransaction();
 
-    // Create a new user record within the session
-    const user = await User.create([{ accountId: existedAccount._id }], {
-      session: session,
-    });
+    // Create a new Super Admin record within the session
+    const superAdmin = await SuperAdmin.create(
+      [
+        {
+          accountId: existedAccount._id,
+          superPassword: superPassword,
+        },
+      ],
+      {
+        session: session,
+      }
+    );
 
     // Update the existing account with a new user role within the session
     const updatedAccount = await Account.findOneAndUpdate(
@@ -65,8 +79,8 @@ export const registerUser = asyncHandler(async (req, res) => {
       {
         $push: {
           role: {
-            name: "USER",
-            id: user[0]._id,
+            name: "SUPERADMIN",
+            id: superAdmin[0]._id,
             isActive: true,
           },
         },
@@ -80,15 +94,18 @@ export const registerUser = asyncHandler(async (req, res) => {
     // Close the session
     session.endSession();
 
+    // Remove the supper password field from the super admin before sending response
+    superAdmin[0].superPassword = undefined;
+
     // Respond with status 201 (created) and JSON data including updated account and created user
     return res.status(201).json(
       new ApiResponse(
         201,
         {
           account: updatedAccount,
-          user: user[0],
+          superAdmin: superAdmin[0],
         },
-        "User created successfully"
+        "SUPER ADMIN created successfully"
       )
     );
   } catch (error) {
@@ -99,13 +116,17 @@ export const registerUser = asyncHandler(async (req, res) => {
   }
 });
 
-// *** User Login ***
-export const loginUser = asyncHandler(async (req, res) => {
+// *** Super Admin Login ***
+export const loginSuperAdmin = asyncHandler(async (req, res) => {
   // Extract email and password from the request body
-  const { email, password } = req.body;
+  const { email, password, superPassword } = req.body;
 
   // Validate that both email and password are provided
-  if ([email, password].some((field) => !field || field?.trim() === "")) {
+  if (
+    [email, password, superPassword].some(
+      (field) => !field || field?.trim() === ""
+    )
+  ) {
     throw new ApiError(400, "All fields are required!!!");
   }
 
@@ -128,67 +149,92 @@ export const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Invalid account credentials");
   }
 
-  // Find the user role with name "USER" from the account roles
-  let userAccount;
+  // Find the account role with name "SUPERADMIN" from the account roles
+  let superAdminAccount;
   existedAccount.role.forEach((role) => {
-    if (role.name === "USER") {
-      userAccount = role;
+    if (role.name === "SUPERADMIN") {
+      superAdminAccount = role;
     }
   });
 
-  // Throw error if account doesn't have a "USER" role
-  if (!userAccount) {
-    throw new ApiError(425, "Need to register as an user!");
+  // Throw error if account doesn't have a "SUPERADMIN" role
+  if (!superAdminAccount) {
+    throw new ApiError(425, "Not a valid Super Admin!");
   }
 
-  // Throw error if the user role is not active
-  if (!userAccount.isActive) {
-    throw new ApiError(423, "User role is not active!");
+  // Throw error if the super admin role is not active
+  if (!superAdminAccount.isActive) {
+    throw new ApiError(423, "Super Admin is not active!");
   }
 
-  // Find the user document based on the user ID from the "USER" role
-  const existedUser = await User.findById(userAccount?.id);
-  if (!existedUser) {
-    throw new ApiError(409, "Something went wrong while searching the user!");
+  // Find the super admin document based on the super admin Id from the "SUPERADMIN" role
+  const existedSuperAdmin = await SuperAdmin.findById(
+    superAdminAccount?.id
+  ).select("+superPassword");
+  if (!existedSuperAdmin) {
+    throw new ApiError(409, "Something went wrong while searching the admin!");
+  }
+
+  // Verify password matches the account's password (implementation from Account model method)
+  const isSuperPasswordValid =
+    await existedSuperAdmin.isSuperPasswordCorrect(superPassword);
+  if (!isSuperPasswordValid) {
+    throw new ApiError(401, "Invalid super admin credentials");
   }
 
   // Generate an access token for the account (implementation from Account model method)
   const accountAccessToken = await existedAccount.generateAccessToken();
 
+  // Generate an access token for the super admin (implementation from Account model method)
+  const superAdminAccessToken = await existedSuperAdmin.generateAccessToken();
+
   // Remove the password field from the account object before sending response
   existedAccount.password = undefined;
+  existedSuperAdmin.superPassword = undefined;
 
-  // Set the access token as a cookie and send a success response with account and user information
+  // Set the access token as a cookie and send a success response with account and admin information
   return res
     .status(200)
     .cookie("accountAccessToken", accountAccessToken, cookieOptions)
+    .cookie("superAdminAccessToken", superAdminAccessToken, cookieOptions)
     .json(
       new ApiResponse(
         200,
-        { account: existedAccount, user: existedUser },
-        "User login successfully"
+        {
+          account: existedAccount,
+          superAdmin: existedSuperAdmin,
+        },
+        "SUPER ADMIN login successfully"
       )
     );
 });
 
-// *** Get User Information ***
-export const getUser = asyncHandler(async (req, res) => {
+// *** Super Admin Information ***
+export const getSuperAdmin = asyncHandler(async (req, res) => {
   // Retrieve user and account data from the request object
-  const { account, user } = req;
+  const { account, superAdmin } = req;
 
   // Return a successful response with user and account information
   return res
     .status(200)
-    .json(new ApiResponse(200, { account, user }, "User fetched successfully"));
+    .json(
+      new ApiResponse(
+        200,
+        { account, superAdmin },
+        "SUPER ADMIN fetched successfully"
+      )
+    );
 });
 
-// *** User Logout ***
-export const logoutUser = asyncHandler(async (req, res) => {
+// *** Super Admin Logout ***
+export const logoutSuperAdmin = asyncHandler(async (req, res) => {
   // Clear the account access token cookie
   res.clearCookie("accountAccessToken", cookieOptions);
+  // Clear the super admin access token cookie
+  res.clearCookie("superAdminAccessToken", cookieOptions);
 
   // Return a successful response indicating logout
   return res
     .status(200)
-    .json(new ApiResponse(200, {}, "User logged out successfully"));
+    .json(new ApiResponse(200, {}, "SUPER ADMIN logged out successfully"));
 });

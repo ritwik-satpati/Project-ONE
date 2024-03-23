@@ -28,8 +28,9 @@ const accountSchema = new Schema(
     // Alternative email address (unique)
     mailAlternative: {
       type: String,
-      unique: true,
+      // unique: true,
       trim: true,
+      required: false,
     },
     // Primary mobile number (unique)
     mobileNumber: {
@@ -40,13 +41,16 @@ const accountSchema = new Schema(
     // Alternative mobile number (unique)
     mobileNumberAlternative: {
       type: String,
-      unique: true,
+      // unique: true,
       trim: true,
+      required: false,
     },
     // WhatsApp number (unique)
     whatsappNumber: {
       type: String,
-      unique: true,
+      // unique: true,
+      trim: true,
+      required: false,
     },
     // Cloydinary URL of the profile picture
     avatar: {

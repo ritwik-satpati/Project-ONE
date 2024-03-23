@@ -25,11 +25,11 @@ app.use(express.static("public"));
 app.use(cookieParser());
 
 //routes import
-import accountRouter from "./routes/account.routes.js";
-import userRouter from "./routes/user.routes.js";
-// import sellerRouter from "./routes/seller.routes.js";
-import adminRouter from "./routes/admin.routes.js";
-import superAdminRouter from "./routes/superAdmin.routes.js";
+import accountRouter from "./routes/account.route.js";
+import userRouter from "./routes/user.route.js";
+// import sellerRouter from "./routes/seller.route.js";
+import adminRouter from "./routes/admin.route.js";
+import superAdminRouter from "./routes/superAdmin.route.js";
 
 //routes declaration
 app.use("/api/v1/account", accountRouter);

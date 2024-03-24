@@ -13,10 +13,14 @@ const cookieOptions = {
 // *** Admin Login ***
 export const loginAdmin = asyncHandler(async (req, res) => {
   // Extract email and password from the request body
-  const { email, password } = req.body;
+  const { email, password, adminPassword } = req.body;
 
   // Validate that both email and password are provided
-  if ([email, password].some((field) => !field || field?.trim() === "")) {
+  if (
+    [email, password, adminPassword].some(
+      (field) => !field || field?.trim() === ""
+    )
+  ) {
     throw new ApiError(400, "All fields are required!!!");
   }
 
@@ -49,7 +53,7 @@ export const loginAdmin = asyncHandler(async (req, res) => {
 
   // Throw error if account doesn't have a "ADMIN" role
   if (!adminAccount) {
-    throw new ApiError(425, "Need to register as an admin!");
+    throw new ApiError(425, "Not a valid Admin!");
   }
 
   // Throw error if the admin role is not active
@@ -58,21 +62,36 @@ export const loginAdmin = asyncHandler(async (req, res) => {
   }
 
   // Find the admin document based on the admin Id from the "ADMIN" role
-  const existedAdmin = await Admin.findById(adminAccount?.id);
+  const existedAdmin = await Admin.findById(adminAccount?.id).select(
+    "+adminPassword"
+  ); // Include the password field for comparison;
   if (!existedAdmin) {
     throw new ApiError(409, "Something went wrong while searching the admin!");
   }
 
-  // Generate an access token for the account (implementation from Account model method)
-  const accountAccessToken = await existedAccount.generateAccessToken();
+  // Verify password matches the admin's password (implementation from Admin model method)
+  const isAdminPasswordValid =
+    await existedAdmin.isAdminPasswordCorrect(adminPassword);
+  if (!isAdminPasswordValid) {
+    throw new ApiError(401, "Invalid admin credentials");
+  }
+
+  // Throw error if the admin is not active
+  if (!existedAdmin.isActive) {
+    throw new ApiError(423, "Admin is not active!");
+  }
+
+  // Generate an access token for the account (implementation from Admin model method)
+  const adminAccessToken = await existedAdmin.generateAccessToken();
 
   // Remove the password field from the account object before sending response
   existedAccount.password = undefined;
+  existedAdmin.adminPassword = undefined;
 
   // Set the access token as a cookie and send a success response with account and admin information
   return res
     .status(200)
-    .cookie("accountAccessToken", accountAccessToken, cookieOptions)
+    .cookie("adminAccessToken", adminAccessToken, cookieOptions)
     .json(
       new ApiResponse(
         200,
@@ -80,27 +99,37 @@ export const loginAdmin = asyncHandler(async (req, res) => {
           account: existedAccount,
           admin: existedAdmin,
         },
-        "Admin login successfully"
+        "ADMIN login successfully"
       )
     );
 });
 
-// *** Get User Information ***
-export const getUser = asyncHandler(async (req, res) => {
+// *** Get Admin Information ***
+export const getAdmin = asyncHandler(async (req, res) => {
   // Retrieve user and account data from the request object
-  const { account, user } = req;
+  const { account, admin } = req;
 
-  // Return a successful response with user and account information
+  // Remove the password field from the account object before sending response
+  account.password = undefined;
+  admin.adminPassword = undefined;
+
+  // Return a successful response with account and admin information
   return res
     .status(200)
-    .json(new ApiResponse(200, { account, user }, "User fetched successfully"));
+    .json(
+      new ApiResponse(200, { account, admin }, "ADMIN fetched successfully")
+    );
 });
 
-// *** User Logout ***
-export const logoutUser = asyncHandler(async (req, res) => {
+// *** Admin Logout ***
+export const logoutAdmin = asyncHandler(async (req, res) => {
   // Clear the account access token cookie
-  res.clearCookie("accountAccessToken", cookieOptions);
+  // res.clearCookie("accountAccessToken", cookieOptions);
+  // Clear the admin access token cookie
+  res.clearCookie("adminAccessToken", cookieOptions);
 
   // Return a successful response indicating logout
-  return res.status(200).json(new ApiResponse(200, {}, "User logged Out"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "ADMIN logged out successfully"));
 });

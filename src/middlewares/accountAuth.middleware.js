@@ -10,23 +10,23 @@ export const accountAuth = asyncHandler(async (req, _, next) => {
       req.header("Authorization")?.replace("Bearer ", "");
 
     if (!token) {
-      throw new ApiError(401, "Unauthorized request");
+      throw new ApiError(401, "Unauthorized request!");
     }
 
-    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    const decodedToken = jwt.verify(token, process.env.ACCOUNT_ACCESS_TOKEN_SECRET);
 
     const account = await Account.findById(decodedToken?._id).select(
       "-password -refreshToken"
     );
 
     if (!account) {
-      throw new ApiError(401, "Invalid Access Token");
+      throw new ApiError(401, "Invalid Access Token!");
     }
 
     req.account = account;
 
     next();
   } catch (error) {
-    throw new ApiError(401, error?.message || "Invalid access token");
+    throw new ApiError(401, error?.message || "Invalid access token!");
   }
 });

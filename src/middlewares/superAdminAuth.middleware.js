@@ -9,7 +9,7 @@ export const superAdminAuth = asyncHandler(async (req, _, next) => {
     const superAdminToken = req.cookies?.superAdminAccessToken;
 
     if (!superAdminToken) {
-      throw new ApiError(401, "Unauthorized request");
+      throw new ApiError(401, "Unauthorized request!");
     }
 
     const decodedSuperAdminToken = jwt.verify(
@@ -19,16 +19,19 @@ export const superAdminAuth = asyncHandler(async (req, _, next) => {
 
     const superAdmin = await SuperAdmin.findById(
       decodedSuperAdminToken?._id
-    ).select("-superPassword");
+    ).select("+superPassword");
     if (!superAdmin) {
-      throw new ApiError(401, "Invalid Super Admin Access Token");
+      throw new ApiError(401, "Invalid Super Admin Access Token!");
+    }
+    if (!superAdmin.isActive) {
+      throw new ApiError(401, "Super Admin is not Active!");
     }
 
     const account = await Account.findById(superAdmin.accountId).select(
-      "-password -refreshToken"
+      "+password"
     );
     if (!account) {
-      throw new ApiError(401, "Invalid Account Access Token");
+      throw new ApiError(404, "Account is not found!");
     }
 
     req.account = account;
@@ -36,6 +39,6 @@ export const superAdminAuth = asyncHandler(async (req, _, next) => {
 
     next();
   } catch (error) {
-    throw new ApiError(401, error?.message || "Invalid access token");
+    throw new ApiError(401, error?.message || "Invalid access token!");
   }
 });

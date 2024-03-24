@@ -3,8 +3,9 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Account } from "../models/account.model.js";
 import fs from "fs";
-import { uploadOnCloudinary } from "../utils/cloudinar.js";
+import { uploadOnCloudinary, destroyOnCloudinary } from "../utils/cloudinar.js";
 
+// * Cookie Options *
 const cookieOptions = {
   httpOnly: true,
   // secure: true,
@@ -41,80 +42,6 @@ const generateAccessTokens = async (userId) => {
     );
   }
 };
-
-const unlinkAvatar = (filePath) => {
-  fs.unlink(filePath, (err) => {
-    if (err) {
-      res.status(500).json({ message: "Error deleting avatar!" });
-    }
-  });
-};
-
-const registerAccountX = asyncHandler(async (req, res) => {
-  const avatarLocalPath = req.file?.path;
-  if (!avatarLocalPath) {
-    throw new ApiError(400, "Avatar file is required!");
-  }
-
-  const { name, mobileNumber, email, password } = req.body;
-  if (
-    [name, mobileNumber, email, password].some(
-      (field) => !field || field?.trim() === ""
-    )
-  ) {
-    unlinkAvatar(avatarLocalPath);
-    throw new ApiError(400, "All fields are required!");
-  }
-
-  const existedAccount = await Account.findOne({
-    $or: [{ email }, { mobileNumber }],
-  });
-  if (existedAccount) {
-    unlinkAvatar(avatarLocalPath);
-    throw new ApiError(
-      409,
-      "Account with mobile number or email already exist!"
-    );
-  }
-
-  const folderNameOnCloudinary = "account_avatars";
-  const avatarOnCloudinary = await uploadOnCloudinary(
-    avatarLocalPath,
-    folderNameOnCloudinary
-  );
-  if (!avatarOnCloudinary) {
-    throw new ApiError(400, "Avatar file upload failed!");
-  }
-  unlinkAvatar(avatarLocalPath);
-
-  const account = await Account.create({
-    name,
-    mobileNumber,
-    email: email.toLowerCase(),
-    avatar: avatarOnCloudinary.url,
-    password,
-  });
-
-  const createdAccount = await Account.findById(account._id).select(
-    "-password -refreshToken"
-  );
-  if (!createdAccount) {
-    throw new ApiError(
-      500,
-      "Something went wrong while registering the account!"
-    );
-  }
-
-  return res
-    .status(201)
-    .json(
-      new ApiResponse(
-        200,
-        createdAccount,
-        "ONE Account registered successfully"
-      )
-    );
-});
 
 // *** ONE Account Registration ***
 export const registerAccount = asyncHandler(async (req, res) => {
@@ -253,4 +180,70 @@ export const logoutAccount = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, {}, "ONE Account logged out successfully"));
+});
+
+// * Avater Unlink - Function *
+const unlinkAvatar = (filePath) => {
+  fs.unlink(filePath, (err) => {
+    if (err) {
+      throw new ApiError(500, "Error deleting avatar!");
+    }
+  });
+};
+
+// *** Avatar Add or Update ***
+export const updateAvatar = asyncHandler(async (req, res) => {
+  // File upload check
+  const avatarLocalPath = req.file?.path;
+  if (!avatarLocalPath) {
+    throw new ApiError(400, "Avatar file is required!");
+  }
+
+  // Account retrieval using accountAuth middleware
+  const account = req.account;
+
+  const folderNameOnCloudinary = "account_avatars";
+
+  const avatarOnCloudinary = await uploadOnCloudinary(
+    avatarLocalPath,
+    folderNameOnCloudinary
+  );
+
+  // Cleanup local file after upload
+  await unlinkAvatar(avatarLocalPath);
+
+  if (!avatarOnCloudinary) {
+    throw new ApiError(400, "Avatar file upload failed!");
+  }
+
+  try {
+    // Delete existing avatar on cloudinary if it exists
+    if (account?.avatar?.service === "Cloudinary") {
+      await destroyOnCloudinary(account?.avatar?.id);
+    }
+
+    // Update Account model with new cloudinary avatar id and url
+    const updatedAccount = await Account.findOneAndUpdate(
+      { _id: account._id },
+      {
+        avatar: {
+          id: avatarOnCloudinary.public_id,
+          url: avatarOnCloudinary.url,
+          service: "Cloudinary",
+        },
+      },
+      { new: true }
+    );
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, updatedAccount, "Avatar updated successfully")
+      );
+  } catch (error) {
+    // Delete newly created avatar on Cloudinary if error occures during updating Account model
+    await destroyOnCloudinary(avatarOnCloudinary.public_id);
+
+    throw new ApiError(400, "Avatar file update failed!");
+  }
 });

@@ -6,6 +6,7 @@ import {
   loginAccount,
   getAccount,
   logoutAccount,
+  updateAvatar,
 } from "../controllers/account.controller.js";
 
 const router = Router();
@@ -25,6 +26,8 @@ router.route("/").get(accountAuth, getAccount);
 router.route("/logout").post(accountAuth, logoutAccount);
 
 // *** ONE Account Update Avatar ***
-// router.route("/avatar").put(upload.single("avatar"), updateAvatar);
+router
+  .route("/avatar")
+  .post(upload.single("avatar"), accountAuth, updateAvatar);
 
 export default router;

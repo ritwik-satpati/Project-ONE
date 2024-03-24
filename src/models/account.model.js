@@ -54,7 +54,15 @@ const accountSchema = new Schema(
     },
     // Cloydinary URL of the profile picture
     avatar: {
-      type: String,
+      id: {
+        type: String,
+      },
+      url: {
+        type: String,
+      },
+      service: {
+        type: String,
+      },
     },
     // Gender of the account holder (optional) for "personal" type account
     gender: {

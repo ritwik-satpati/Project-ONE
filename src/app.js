@@ -27,14 +27,12 @@ app.use(cookieParser());
 //routes import
 import accountRouter from "./routes/account.route.js";
 import userRouter from "./routes/user.route.js";
-// import sellerRouter from "./routes/seller.route.js";
 import adminRouter from "./routes/admin.route.js";
 import superAdminRouter from "./routes/superAdmin.route.js";
 
 //routes declaration
 app.use("/api/v1/account", accountRouter);
 app.use("/api/v1/user", userRouter);
-// app.use("/api/v1/seller", sellerRouter);
 app.use("/api/v1/admin", adminRouter);
 app.use("/api/v1/super-admin", superAdminRouter);
 
